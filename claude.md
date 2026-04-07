@@ -1,5 +1,12 @@
 # Budget App — Project Specification
 
+## Ways of working
+
+- **Always update `claude.md` and `README.md` before committing.** If a commit changes behaviour, adds a feature, or modifies the sheet structure, update both files to reflect it in the same commit.
+- `main` is the stable branch — do not push directly.
+- Work on `develop` or feature branches; PR into `develop`, then PR `develop` → `main` to release.
+- Merging to `main` triggers GitHub Actions to deploy functions + hosting automatically.
+
 ## Overview
 
 A personal budget app for tracking and categorising bank transactions in New Zealand. The app syncs bank account data via Akahu into a Google Sheet, which serves as the primary data store. A PWA provides the user interface for viewing and categorising transactions.
@@ -9,207 +16,225 @@ The key design decision: Google Sheets is the database. This gives full visibili
 ## Architecture
 
 ```
-Akahu API → Firebase Function (scheduled) → Google Sheets ← → PWA (Firebase Hosting)
+Akahu API → Firebase Function (scheduled + HTTP) → Google Sheets ← → PWA (Firebase Hosting)
 ```
 
 ### Components
 
-1. **Firebase Function (Scheduled + HTTP)** — Runs every 4 hours (Auckland timezone), pulls new transactions from Akahu, deduplicates by transaction ID, and appends to the Google Sheet. Also exposes an HTTP endpoint for on-demand sync, secured with a shared secret header (`x-sync-secret`).
-2. **Google Sheet** — Source of truth for all transaction data and category assignments.
-3. **PWA** — Mobile-first web app hosted on Firebase Hosting. Reads transactions from the sheet, lets the user assign/edit categories, and writes changes back.
+1. **Firebase Function (Scheduled)** — `syncAkahu` — runs every 4 hours (Pacific/Auckland), pulls new transactions from Akahu (paginated), deduplicates by transaction ID, applies auto-categorisation rules, appends to the sheet, syncs pending transactions, updates balances, and updates the snapshot actuals.
+2. **Firebase Function (HTTP)** — `syncAkahuHttp` — same logic as above but triggered on-demand via POST from the PWA. Secured with `x-sync-secret` header.
+3. **Google Sheet** — Source of truth for all data.
+4. **PWA** — Mobile-first web app. Reads from the sheet via Google Sheets API v4 (authenticated as the user via Google OAuth/GIS). Lets the user assign categories, view summaries, track budgets, and trigger manual syncs.
 
 ## Tech Stack
 
-| Component        | Technology                        |
-| ---------------- | --------------------------------- |
-| Bank feed        | Akahu API (NZ bank aggregator)    |
-| Sync worker      | Firebase Functions (Node.js)      |
-| Scheduler        | Firebase Cloud Scheduler (cron)   |
-| Data store       | Google Sheets API v4              |
-| Frontend         | React + Vite (PWA)                |
-| Hosting          | Firebase Hosting                  |
-| Service worker   | Workbox                           |
-| Auth (Sheets)    | Firebase default service account  |
-| Secrets          | Google Cloud Secret Manager (via `firebase functions:secrets:set`) |
+| Component        | Technology                                                        |
+|------------------|-------------------------------------------------------------------|
+| Bank feed        | Akahu API (NZ bank aggregator)                                    |
+| Sync worker      | Firebase Functions v2 (Node.js 20)                               |
+| Scheduler        | Firebase Cloud Scheduler (cron)                                   |
+| Data store       | Google Sheets API v4                                              |
+| Frontend         | React + Vite (PWA)                                               |
+| Hosting          | Firebase Hosting                                                  |
+| Service worker   | Workbox (via vite-plugin-pwa)                                     |
+| Auth (Functions) | Compute Engine default service account                            |
+| Auth (PWA)       | Google Identity Services (GIS) — OAuth2 implicit flow            |
+| Secrets          | Google Cloud Secret Manager (`firebase functions:secrets:set`)    |
+| CI/CD            | GitHub Actions → deploy on push to `main`                        |
 
 ## Google Sheet Structure
-
-
-### Sheet: `balances`
-
-| Column | Description | Example |
-| --- | --- | --- |
-| `account` | Human-readable account name | `ANZ Everyday` |
-| `description` | Akahu account ID (`_id`) | `acc_abc123` |
-| `balance` | Current account balance | `100000` |
-| `last_transaction` | last recorded transaction | `2026-04-05` |
 
 ### Sheet: `transactions`
 
 | Column | Description | Example |
-| --- | --- | --- |
-| `id` | Akahu transaction ID (used for dedup) | `trans_abc123` |
-| `date` | Transaction date | `2026-04-05` |
-| `description` | Raw merchant/payee description | `COUNTDOWN PONSONBY` |
+|---|---|---|
+| `id` | Akahu transaction ID — prefix `pending_` for unprocessed | `trans_abc123` |
+| `date` | Transaction date (YYYY-MM-DD) | `2026-04-05` |
+| `description` | Raw merchant/payee description. Pending rows prefixed `[PENDING]` | `COUNTDOWN PONSONBY` |
 | `amount` | Transaction amount (negative = debit) | `-42.50` |
 | `account` | Akahu account ID (`_account`) | `acc_abc123` |
 | `category` | User-assigned category (editable via PWA) | `Groceries` |
 | `notes` | Optional user notes | `Weekly shop` |
 
+**Pending transactions:** Akahu's `/transactions/pending` endpoint is called each sync. Pending rows are stored with a `pending_` ID prefix and `[PENDING]` description prefix. They are replaced wholesale each sync (preserving any user-assigned category/notes). When a pending transaction settles, it gets a new Akahu ID — the sync matches it to the pending row by `amount + account` to carry over the category.
+
+### Sheet: `balances`
+
+| Column | Description | Example |
+|---|---|---|
+| `account` | Human-readable account name | `ANZ Everyday` |
+| `description` | Akahu account ID (`_id`) | `acc_abc123` |
+| `balance` | Current account balance | `4850.00` |
+| `last_transaction` | Date of last recorded transaction | `2026-04-05` |
+
+Cleared and rewritten on every sync.
+
 ### Sheet: `categories`
 
 | Column | Description | Example |
-| --- | --- | --- |
+|---|---|---|
 | `name` | Category name | `Groceries` |
-| `colour` | Display colour in PWA | `#4CAF50` |
+| `colour` | Hex colour used in PWA | `#4CAF50` |
 | `budget` | Monthly budget target (optional) | `600` |
+
+### Sheet: `rules`
+
+| Column | Description | Example |
+|---|---|---|
+| `pattern` | Case-insensitive substring match on description | `COUNTDOWN` |
+| `category` | Category to auto-assign | `Groceries` |
+
+Applied when new transactions are appended. User can override in the PWA.
+
+### Sheet: `snapshots`
+
+| Column | Description | Example |
+|---|---|---|
+| `month` | Month in `YYYY-MM` format | `2026-04` |
+| `expected` | Expected total cash-on-hand across all accounts | `26000` |
+| `actual` | Actual total — written by the sync function | `25400` |
+| `diff` | `actual - expected` — written by the sync function | `-600` |
+
+One row per month. `expected` is filled in manually. Each sync updates `actual` and `diff` for the current month's row using the live sum of all account balances. Past months are frozen once the month rolls over.
 
 ### Sheet: `meta`
 
 | Cell | Description | Example |
-| --- | --- | --- |
-| `B1` | Last sync date (updated after each sync) | `2026-04-06` |
-
-### Sheet: `rules` (optional, for auto-categorisation)
-
-| Column | Description | Example |
-| --- | --- | --- |
-| `pattern` | Substring match on description | `COUNTDOWN` |
-| `category` | Category to auto-assign | `Groceries` |
-
-When the sync function appends new transactions, it checks the `rules` sheet and pre-fills the category column for any matches. The user can override these in the PWA.
+|---|---|---|
+| `B1` | Date of last sync (YYYY-MM-DD) | `2026-04-07` |
 
 ## Firebase Function — Akahu Sync
 
 ### Behaviour
 
-1. Runs on a cron schedule every 4 hours (Pacific/Auckland timezone), or on-demand via HTTP POST with `x-sync-secret` header.
-2. Reads the last sync date from cell `B1` of the `meta` sheet. Defaults to 30 days ago on first run.
-3. Calls Akahu `GET /transactions` with a `start` parameter, following pagination cursors to fetch all results.
-4. Fetches Akahu `GET /accounts` for current balances.
-5. Filters out any transactions whose `id` already exists in the sheet (belt-and-braces dedup).
-6. Applies auto-categorisation rules from the `rules` sheet.
-7. Appends new rows to `transactions`.
-8. Clears and rewrites the `balances` sheet.
-9. Updates `meta!B1` with today's date.
+1. Reads last sync date from `meta!B1`. Looks back 3 days from that date to catch late-arriving transactions. Defaults to 30 days ago on first run.
+2. Calls Akahu `GET /transactions` (paginated via cursor) and `GET /transactions/pending`.
+3. Calls Akahu `GET /accounts` for current balances.
+4. Reads existing transaction IDs and pending rows from the sheet.
+5. Filters settled transactions to only new ones (not in existing IDs).
+6. For new settled transactions, attempts to match pending rows by `amount + account` to carry over user-assigned category/notes.
+7. Applies auto-categorisation rules from the `rules` sheet to any unmatched transactions.
+8. Appends new settled transactions.
+9. Replaces all pending rows (preserving user-set category/notes by ID).
+10. Clears and rewrites the `balances` sheet.
+11. Updates `actual` and `diff` in the current month's `snapshots` row.
+12. Updates `meta!B1` with today's date.
 
 ### Secrets Required
 
-- `AKAHU_APP_TOKEN` — Your Akahu app token (sent as `X-Akahu-Id` header).
-- `AKAHU_USER_TOKEN` — Your Akahu user token (sent as `Authorization: Bearer` header).
-- `GOOGLE_SHEET_ID` — The ID of the target spreadsheet.
-- `SYNC_SECRET` — Shared secret for authenticating HTTP sync requests.
-
-Store these using Firebase Secret Manager:
 ```bash
-firebase functions:secrets:set AKAHU_APP_TOKEN
-firebase functions:secrets:set AKAHU_USER_TOKEN
-firebase functions:secrets:set GOOGLE_SHEET_ID
-firebase functions:secrets:set SYNC_SECRET
+firebase functions:secrets:set AKAHU_APP_TOKEN    # sent as X-Akahu-Id header
+firebase functions:secrets:set AKAHU_USER_TOKEN   # sent as Authorization: Bearer
+firebase functions:secrets:set GOOGLE_SHEET_ID    # spreadsheet ID from URL
+firebase functions:secrets:set SYNC_SECRET        # shared secret for HTTP endpoint
 ```
-
-### Key Dependencies
-
-- `googleapis` — Google Sheets API client.
-- Built-in `fetch` — For Akahu API calls.
-- `firebase-functions` — For scheduled and HTTP function definitions.
 
 ## PWA — Frontend
 
-### Core Features
+### Tabs
 
-1. **Transaction list** — Scrollable list of recent transactions, grouped by date. Shows description, amount, account name, and category. Rows missing a category are highlighted in red.
-2. **Categorise** — Tap a transaction to assign or change its category. Writes the change back to the sheet immediately.
-3. **Monthly summary** — Simple breakdown of spending by category for the current month.
-4. **Budget tracking** — If budgets are set in the `categories` sheet, shows progress bars for each category.
-5. **Manual sync** — "Sync" button in the header triggers an immediate Akahu sync via the HTTP function.
+1. **Transactions** — Scrollable list grouped by date. Debits with no category highlighted red. Shows account name and category. Tap to open category picker.
+2. **Summary** — Current month's total spend + total live balance across all accounts. Per-account balance list with this-month spend. Spend breakdown by category with bar chart.
+3. **Budget** — Progress bars for each category that has a budget set in the `categories` sheet.
+4. **Snapshot** — Monthly cash-on-hand targets vs actuals. Current month uses live balance total; past months show stored actuals. Diff shown per month.
+
+### Header
+
+- **Sync** button — triggers `syncAkahuHttp`, then reloads transactions and balances.
+- **Sign out** — clears the OAuth token.
 
 ### Technical Details
 
-- Built with React + Vite.
-- Uses Google Sheets API v4 directly from the client for reads and writes.
-- Authentication: Google OAuth2 (personal account) — the sheet is private, so the PWA authenticates as you.
-- Service worker via Workbox for offline app shell caching (data itself requires network).
-- Manifest configured for standalone display mode, themed appropriately.
-
-### Sheets API Access from PWA
-
-The PWA authenticates via Google OAuth (using the same Google account that owns the sheet). Use `gapi` or the Google Identity Services library to get an access token, then call the Sheets API directly. No Firebase Function needed in the read/write path — the function is only for the Akahu sync.
+- React + Vite, TypeScript strict mode.
+- Tailwind CSS for styling — dark theme (`bg-slate-900`).
+- Google Identity Services (GIS) for OAuth. Polls until `window.google.accounts.oauth2` is available (avoids race condition with async GIS script load).
+- Sheets API called directly from the PWA using the user's OAuth token — no Firebase Function in the read/write path.
+- Workbox service worker for offline app shell caching.
+- Safe-area insets handled for notched phones.
+- Dates parsed as `new Date(year, month-1, day)` (not `new Date(isoString)`) to avoid UTC-midnight timezone issues in NZ.
 
 ## Project Structure
 
 ```
-budget-app/
-├── firebase.json              # Firebase config (hosting + functions)
-├── .firebaserc                # Firebase project alias
-├── claude.md                  # This file
+BudgetAppV2/
+├── firebase.json
+├── .firebaserc                        # project: budgetappv2-b7275
+├── claude.md                          # this file
+├── README.md
+├── .github/
+│   └── workflows/
+│       └── deploy.yml                 # deploy functions + hosting on push to main
 │
-├── functions/                 # Firebase Functions
-│   ├── package.json
-│   ├── src/
-│   │   ├── index.ts           # Function entry point (scheduled sync)
-│   │   ├── akahu.ts           # Akahu API client
-│   │   ├── sheets.ts          # Google Sheets read/write helpers
-│   │   └── categorise.ts      # Auto-categorisation rule matching
-│   └── tsconfig.json
+├── functions/                         # Firebase Functions (Node.js 20 / TypeScript)
+│   └── src/
+│       ├── index.ts                   # syncAkahu (scheduled) + syncAkahuHttp (HTTP)
+│       ├── akahu.ts                   # Akahu API client (paginated, pending)
+│       ├── sheets.ts                  # Sheets read/write helpers
+│       └── categorise.ts             # Rule matching
 │
-├── src/                       # PWA source (React + Vite)
-│   ├── main.tsx               # App entry
-│   ├── App.tsx                # Root component and routing
-│   ├── components/
-│   │   ├── TransactionList.tsx
-│   │   ├── TransactionRow.tsx
-│   │   ├── CategoryPicker.tsx
-│   │   ├── MonthlySummary.tsx
-│   │   └── BudgetProgress.tsx
-│   ├── hooks/
-│   │   ├── useTransactions.ts # Fetch/update transactions via Sheets API
-│   │   ├── useCategories.ts   # Fetch categories and budgets
-│   │   └── useBalances.ts     # Fetch account balances
+├── src/                               # PWA (React + Vite)
+│   ├── App.tsx                        # Root — auth, tabs, sync trigger
+│   ├── types.ts                       # Transaction, Category, Balance, Snapshot
+│   ├── index.css                      # Tailwind + safe-area utilities
+│   ├── sw.ts                          # Workbox service worker
 │   ├── lib/
-│   │   ├── sheets.ts          # Sheets API wrapper
-│   │   └── auth.ts            # Google OAuth setup
-│   ├── types.ts               # Shared TypeScript types
-│   └── sw.ts                  # Service worker (Workbox)
+│   │   ├── auth.ts                    # GIS OAuth wrapper
+│   │   └── sheets.ts                  # Sheets API client
+│   ├── hooks/
+│   │   ├── useTransactions.ts
+│   │   ├── useCategories.ts
+│   │   ├── useBalances.ts
+│   │   └── useSnapshots.ts
+│   └── components/
+│       ├── TransactionList.tsx
+│       ├── TransactionRow.tsx
+│       ├── CategoryPicker.tsx
+│       ├── MonthlySummary.tsx
+│       ├── BudgetProgress.tsx
+│       └── SnapshotTab.tsx
 │
 ├── public/
-│   ├── manifest.json          # PWA manifest
-│   └── icons/                 # App icons
+│   └── icons/                         # icon-192.png, icon-512.png
 │
-├── vite.config.ts
+├── vite.config.ts                     # PWA plugin, port 5174
 ├── tailwind.config.ts
 ├── tsconfig.json
 └── package.json
 ```
 
+## Environment Variables (`.env.local`)
+
+```
+VITE_GOOGLE_CLIENT_ID=<OAuth client ID>
+VITE_SHEET_ID=<spreadsheet ID>
+VITE_SYNC_URL=<deployed syncAkahuHttp URL>
+VITE_SYNC_SECRET=<same value as SYNC_SECRET secret>
+```
+
+## GitHub Actions Secrets Required
+
+| Secret | Description |
+|---|---|
+| `FIREBASE_SERVICE_ACCOUNT_BUDGETAPPV2_B7275` | Service account JSON (created by `firebase init hosting:github`) |
+| `VITE_GOOGLE_CLIENT_ID` | OAuth client ID |
+| `VITE_SHEET_ID` | Spreadsheet ID |
+| `VITE_SYNC_URL` | Deployed HTTP function URL |
+| `VITE_SYNC_SECRET` | Sync shared secret |
+
 ## Setup Steps
 
-1. **Akahu** — Register a personal app at https://my.akahu.nz. Connect your bank accounts. Note your app token and user token.
-2. **Google Sheet** — Create a new spreadsheet. Add the `transactions`, `categories`, `rules`, `balances`, and `meta` sheets with the column headers listed above. In the `meta` sheet put a start date in cell `B1` (e.g. `2026-01-01`). Note the spreadsheet ID from the URL.
-3. **Firebase** — Create a Firebase project. Enable Functions (requires Blaze plan for outbound network calls). Enable Hosting.
-4. **Service account** — Firebase Functions v2 runs as the **Compute Engine default service account** (`PROJECT_NUMBER-compute@developer.gserviceaccount.com`), not the Firebase Admin SDK account. Find it in Google Cloud Console → IAM & Admin → Service Accounts and share the Google Sheet with it as Editor.
-5. **Secrets** — Store all four secrets using `firebase functions:secrets:set` (see Secrets Required above).
-6. **Deploy functions** — `cd functions && npm install && cd .. && firebase deploy --only functions`.
-7. **PWA** — Set up Google OAuth consent screen (internal use), create OAuth client ID for web. Configure in the PWA's auth module.
-8. **Deploy PWA** — `npm run build && firebase deploy --only hosting`.
-
-## Development Workflow
-
-- Run the PWA locally with `npm run dev` (Vite dev server on port 5174).
-- Test Firebase Functions locally with `firebase emulators:start`.
-- The Google Sheet is always accessible directly for manual inspection or edits.
-- After deploying functions, copy the `syncAkahuHttp` URL from the deploy output into `.env.local` as `VITE_SYNC_URL`.
-- `.env.local` is gitignored — set `VITE_SYNC_SECRET` to match the `SYNC_SECRET` Firebase secret.
+1. **Akahu** — Register a personal app at [my.akahu.nz](https://my.akahu.nz). Connect bank accounts. Note app token and user token.
+2. **Google Sheet** — Create a spreadsheet with sheets: `transactions`, `balances`, `categories`, `rules`, `meta`, `snapshots`. Add headers as above. Put an initial date in `meta!B1`.
+3. **Firebase** — Create project (Blaze plan). Enable Functions + Hosting. Share the sheet with the Compute Engine default service account as Editor.
+4. **Google OAuth** — Enable Sheets API. Create OAuth client ID (Web). Add authorised origins: `http://localhost:5174` and `https://budgetappv2-b7275.web.app`.
+5. **Secrets** — Set all four Firebase secrets (see above).
+6. **GitHub Actions** — Run `firebase init hosting:github --project budgetappv2-b7275` to create the service account and add it as a GitHub secret. Add the four VITE secrets manually.
+7. **Deploy** — Push to `main` — GitHub Actions handles the rest.
 
 ## Design Principles
 
-- **Sheets as source of truth** — The app is a UI layer. You should always be able to open the sheet and understand or fix your data directly.
-- **Keep it simple** — This is a personal tool, not a product. Avoid over-engineering. No user management, no multi-tenancy, no complex state management.
-- **Mobile-first** — The PWA will primarily be used on a phone. Design for touch, small screens, and quick interactions.
-- **Idempotent sync** — The Akahu sync must be safe to re-run. Deduplication by transaction ID ensures no duplicates even if the function runs twice or overlaps.
-
-
-### Git workflow
-- `main` is the stable branch — do not push directly
-- Work on `develop` or feature branches
-- PR into `develop`, then PR `develop` → `main` to release
+- **Sheets as source of truth** — always inspectable and editable directly.
+- **No backend for reads/writes** — PWA calls Sheets API directly with the user's OAuth token.
+- **Idempotent sync** — safe to re-run; dedup by transaction ID.
+- **Mobile-first** — touch-friendly, dark theme, safe-area aware.
+- **Personal tool** — no multi-tenancy, no user management, keep it simple.
