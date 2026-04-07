@@ -14,7 +14,7 @@ export function TransactionRow({ transaction: tx, categories, accountName, onTap
   return (
     <button
       onClick={() => onTap(tx)}
-      className={`flex w-full items-center gap-3 px-4 py-3 text-left active:bg-slate-700/50 ${!tx.category ? 'bg-red-950/40' : ''}`}
+      className={`flex w-full items-center gap-3 px-4 py-3 text-left active:bg-slate-700/50 ${!tx.category && tx.amount < 0 ? 'bg-red-950/40' : ''}`}
     >
       {/* Category dot */}
       <span
