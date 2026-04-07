@@ -24,21 +24,19 @@ export function App() {
   const { categories, load: loadCategories } = useCategories();
   const { balances, load: loadBalances } = useBalances();
 
-  // Initialise GIS once the script has loaded
+  // Initialise GIS once the script has loaded — poll until available
   useEffect(() => {
-    const init = () => {
-      try {
+    let cancelled = false;
+    function tryInit() {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((window as any).google?.accounts?.oauth2) {
         initAuth();
-      } catch {
-        // GIS script not ready yet — it will fire onload
+      } else if (!cancelled) {
+        setTimeout(tryInit, 100);
       }
-    };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((window as any).google?.accounts) {
-      init();
-    } else {
-      window.addEventListener('load', init, { once: true });
     }
+    tryInit();
+    return () => { cancelled = true; };
   }, []);
 
   async function signIn() {
