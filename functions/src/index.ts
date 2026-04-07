@@ -25,9 +25,11 @@ async function runSync() {
   const userToken = AKAHU_USER_TOKEN.value();
 
   const lastSync = await getLastSync(sheetId);
-  const start =
-    lastSync ??
-    new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  // Look back 3 days from last sync to catch late-arriving transactions.
+  // Dedup by transaction ID ensures no duplicates.
+  const start = lastSync
+    ? new Date(new Date(lastSync).getTime() - 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
   const [transactions, accounts, existingIds, rules] = await Promise.all([
     getTransactions(appToken, userToken, start),
