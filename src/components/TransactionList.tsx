@@ -18,8 +18,13 @@ function groupByDate(transactions: Transaction[]): [string, Transaction[]][] {
   return Array.from(map.entries());
 }
 
+function parseLocalDate(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-NZ', {
+  return parseLocalDate(iso).toLocaleDateString('en-NZ', {
     weekday: 'short',
     day: 'numeric',
     month: 'short',

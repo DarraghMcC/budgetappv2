@@ -106,27 +106,53 @@ export function App() {
   return (
     <div className="flex min-h-dvh flex-col bg-slate-900">
       {/* Header */}
-      <header className="flex items-center justify-between px-4 pb-2 pt-safe-top">
-        <h1 className="text-lg font-bold">Budget</h1>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={triggerSync}
-            disabled={syncing}
-            className="text-xs text-slate-400 active:opacity-60 disabled:opacity-40"
-          >
-            {syncing ? 'Syncing…' : 'Sync'}
-          </button>
-          <button onClick={signOut} className="text-xs text-slate-400 active:opacity-60">
-            Sign out
-          </button>
+      <header className="pt-safe-top px-4 pb-0">
+        <div className="flex items-center justify-between pb-2">
+          <h1 className="text-lg font-bold">Budget</h1>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={triggerSync}
+              disabled={syncing}
+              className="text-xs text-slate-400 active:opacity-60 disabled:opacity-40"
+            >
+              {syncing ? 'Syncing…' : 'Sync'}
+            </button>
+            <button onClick={signOut} className="text-xs text-slate-400 active:opacity-60">
+              Sign out
+            </button>
+          </div>
         </div>
+
+        {/* Top nav tabs */}
+        <nav className="flex border-b border-slate-700">
+          {(
+            [
+              { id: 'transactions', label: 'Transactions' },
+              { id: 'summary', label: 'Summary' },
+              { id: 'budget', label: 'Budget' },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setView(tab.id)}
+              className={`flex-1 py-2.5 text-xs font-medium transition-colors border-b-2 -mb-px ${
+                view === tab.id
+                  ? 'text-white border-white'
+                  : 'text-slate-500 border-transparent'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+
+        {syncMsg && (
+          <p className="py-1 text-center text-xs text-slate-400">{syncMsg}</p>
+        )}
       </header>
-      {syncMsg && (
-        <p className="px-4 py-1 text-center text-xs text-slate-400">{syncMsg}</p>
-      )}
 
       {/* Content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto pb-safe-bottom">
         {loading && (
           <p className="py-12 text-center text-sm text-slate-500">Loading…</p>
         )}
@@ -149,27 +175,6 @@ export function App() {
           <BudgetProgress transactions={transactions} categories={categories} />
         )}
       </main>
-
-      {/* Bottom nav */}
-      <nav className="flex border-t border-slate-700 pb-safe-bottom">
-        {(
-          [
-            { id: 'transactions', label: 'Transactions' },
-            { id: 'summary', label: 'Summary' },
-            { id: 'budget', label: 'Budget' },
-          ] as const
-        ).map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setView(tab.id)}
-            className={`flex-1 py-3 text-xs font-medium transition-colors ${
-              view === tab.id ? 'text-white' : 'text-slate-500'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
 
       {/* Category picker overlay */}
       {picking && (
