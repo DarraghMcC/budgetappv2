@@ -7,4 +7,3 @@ functions/node_modules/
 .agents/
 .claude/
 skills-lock.json
-functions/package-lock.json
