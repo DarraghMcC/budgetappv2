@@ -24,7 +24,7 @@ export function getToken(): string | null {
 export function requestToken(): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!_tokenClient) {
-      reject(new Error('Auth not initialised — call initAuth() first'));
+      reject(new Error('Google sign-in not ready yet — please try again'));
       return;
     }
     _tokenClient.callback = (resp: { error?: string; access_token: string }) => {
