@@ -17,5 +17,6 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - run: cd functions && npm ci
       - run: npm test
-      - run: cd functions && npm ci && npm test
+      - run: cd functions && npm test
