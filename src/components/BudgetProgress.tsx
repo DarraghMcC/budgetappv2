@@ -1,6 +1,5 @@
 import type { Balance, Category, Transaction } from '../types';
-
-const PERSONAL_ACCOUNT = 'Darragh Personal';
+import { filterBudgetTransactions } from '../lib/spending';
 
 interface Props {
   transactions: Transaction[];
@@ -10,17 +9,9 @@ interface Props {
 
 export function BudgetProgress({ transactions, categories, balances }: Props) {
   const now = new Date();
-  const personalId = balances.find((b) => b.account === PERSONAL_ACCOUNT)?.description;
-
-  const monthTxs = transactions.filter((tx) => {
-    const [y, m] = tx.date.split('-').map(Number);
-    const d = new Date(y, m - 1, 1);
-    return (
-      d.getFullYear() === now.getFullYear() &&
-      d.getMonth() === now.getMonth() &&
-      tx.amount < 0 &&
-      tx.account !== personalId
-    );
+  const monthTxs = filterBudgetTransactions(transactions, balances, {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
   });
 
   const budgeted = categories.filter((c) => c.budget != null);
