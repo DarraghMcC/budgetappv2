@@ -6,15 +6,20 @@ interface Props {
   balances: Balance[];
 }
 
+const PERSONAL_ACCOUNT = 'Darragh Personal';
+
 export function MonthlySummary({ transactions, categories, balances }: Props) {
   const now = new Date();
+  const personalId = balances.find((b) => b.account === PERSONAL_ACCOUNT)?.description;
+
   const monthTxs = transactions.filter((tx) => {
     const [y, m] = tx.date.split('-').map(Number);
     const d = new Date(y, m - 1, 1);
     return (
       d.getFullYear() === now.getFullYear() &&
       d.getMonth() === now.getMonth() &&
-      tx.amount < 0
+      tx.amount < 0 &&
+      tx.account !== personalId
     );
   });
 
