@@ -21,3 +21,11 @@ export interface Balance {
   balance: number;
   last_transaction: string;
 }
+
+export interface Snapshot {
+  month: string;    // YYYY-MM
+  expected: number;
+  actual: number | null;
+  diff: number | null;
+  rowIndex: number; // 1-based sheet row, for sync writes
+}

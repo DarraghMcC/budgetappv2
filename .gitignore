@@ -4,3 +4,7 @@ functions/lib/
 functions/node_modules/
 .env.local
 .firebase/
+.agents/
+.claude/
+skills-lock.json
+functions/package-lock.json
