@@ -1,13 +1,15 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onRequest } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
-import { getTransactions, getAccounts } from './akahu';
+import { getTransactions, getPendingTransactions, getAccounts } from './akahu';
 import {
   getExistingIds,
+  getExistingPendingRows,
   getLastSync,
   setLastSync,
   getRules,
   appendTransactions,
+  replacePendingTransactions,
   updateBalances,
 } from './sheets';
 import { applyRules } from './categorise';
@@ -31,26 +33,56 @@ async function runSync() {
     ? new Date(new Date(lastSync).getTime() - 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
     : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-  const [transactions, accounts, existingIds, rules] = await Promise.all([
+  const [transactions, pending, accounts, existingIds, existingPending, rules] = await Promise.all([
     getTransactions(appToken, userToken, start),
+    getPendingTransactions(appToken, userToken),
     getAccounts(appToken, userToken),
     getExistingIds(sheetId),
+    getExistingPendingRows(sheetId),
     getRules(sheetId),
   ]);
 
+  // Build a lookup of pending rows by "amount|account" to carry over category/notes
+  // when a transaction settles with a new ID. If multiple pending rows share the same
+  // amount+account we use the first match and remove it so it can't match twice.
+  const pendingByKey = new Map<string, { category: string; notes: string }>();
+  for (const p of existingPending) {
+    const key = `${p.amount}|${p.account}`;
+    if (!pendingByKey.has(key)) {
+      pendingByKey.set(key, { category: p.category, notes: p.notes });
+    }
+  }
+
   const newTransactions = transactions.filter((t) => !existingIds.has(t._id));
 
-  const txRows = newTransactions.map((t) => [
-    t._id,
-    t.date.slice(0, 10),
-    t.description,
+  const txRows = newTransactions.map((t) => {
+    const key = `${t.amount}|${t._account}`;
+    const matched = pendingByKey.get(key);
+    if (matched) pendingByKey.delete(key); // consume the match
+    return [
+      t._id,
+      t.date.slice(0, 10),
+      t.description,
+      String(t.amount),
+      t._account,
+      matched?.category || applyRules(t.description, rules),
+      matched?.notes ?? '',
+    ];
+  });
+
+  await appendTransactions(sheetId, txRows);
+
+  // Replace pending rows each sync, preserving any user-assigned categories/notes
+  const pendingRows = pending.map((t) => [
+    `pending_${t._id}`,
+    new Date().toISOString().slice(0, 10),
+    `[PENDING] ${t.description}`,
     String(t.amount),
     t._account,
     applyRules(t.description, rules),
-    '', // notes
+    '',
   ]);
-
-  await appendTransactions(sheetId, txRows);
+  await replacePendingTransactions(sheetId, pendingRows);
 
   const balanceRows = accounts.map((a) => [
     a.name,

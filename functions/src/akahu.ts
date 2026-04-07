@@ -47,6 +47,14 @@ export async function getTransactions(
   return all;
 }
 
+export async function getPendingTransactions(
+  appToken: string,
+  userToken: string,
+): Promise<AkahuTransaction[]> {
+  const data = await akahuFetch('/transactions/pending', appToken, userToken);
+  return (data.items ?? []) as AkahuTransaction[];
+}
+
 export async function getAccounts(
   appToken: string,
   userToken: string,
