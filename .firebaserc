@@ -1,8 +1,6 @@
 {
   "projects": {
-    "default": "your-firebase-project-id",
-    "Budegtappv2": "budgetappv2-b7275"
-  },
-  "targets": {},
-  "etags": {}
+    "default": "budgetappv2-b7275"
+  }
 }
+
