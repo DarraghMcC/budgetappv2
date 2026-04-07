@@ -8,7 +8,8 @@ interface Props {
 export function BudgetProgress({ transactions, categories }: Props) {
   const now = new Date();
   const monthTxs = transactions.filter((tx) => {
-    const d = new Date(tx.date);
+    const [y, m] = tx.date.split('-').map(Number);
+    const d = new Date(y, m - 1, 1);
     return (
       d.getFullYear() === now.getFullYear() &&
       d.getMonth() === now.getMonth() &&
