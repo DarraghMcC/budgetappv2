@@ -1,4 +1,5 @@
 import type { Balance, Category, Transaction } from '../types';
+import { filterBudgetTransactions } from '../lib/spending';
 
 interface Props {
   transactions: Transaction[];
@@ -8,17 +9,13 @@ interface Props {
 
 export function MonthlySummary({ transactions, categories, balances }: Props) {
   const now = new Date();
-  const monthTxs = transactions.filter((tx) => {
-    const [y, m] = tx.date.split('-').map(Number);
-    const d = new Date(y, m - 1, 1);
-    return (
-      d.getFullYear() === now.getFullYear() &&
-      d.getMonth() === now.getMonth() &&
-      tx.amount < 0
-    );
+  const monthTxs = filterBudgetTransactions(transactions, balances, {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
   });
 
   const totalSpent = monthTxs.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+  const totalBudget = categories.reduce((sum, c) => sum + (c.budget ?? 0), 0);
   const totalBalance = balances.reduce((sum, b) => sum + b.balance, 0);
 
   // Spend per account this month
@@ -44,7 +41,12 @@ export function MonthlySummary({ transactions, categories, balances }: Props) {
           <p className="text-xs text-slate-400 mb-1">
             {now.toLocaleString('en-NZ', { month: 'long' })} spending
           </p>
-          <p className="text-2xl font-bold">${totalSpent.toFixed(2)}</p>
+          <p className="text-2xl font-bold">${totalSpent.toFixed(0)}</p>
+          {totalBudget > 0 && (
+            <p className={`text-xs mt-1 ${totalSpent > totalBudget ? 'text-red-400' : 'text-slate-400'}`}>
+              of ${totalBudget.toFixed(0)}
+            </p>
+          )}
         </div>
         <div className="rounded-2xl bg-slate-800 p-4 text-center">
           <p className="text-xs text-slate-400 mb-1">Total balance</p>

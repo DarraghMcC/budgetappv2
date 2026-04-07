@@ -21,7 +21,7 @@ export function SnapshotTab({ snapshots, balances }: Props) {
   const currentMonth = new Date().toISOString().slice(0, 7);
   const liveTotal = balances.reduce((sum, b) => sum + b.balance, 0);
 
-  const sorted = [...snapshots].sort((a, b) => b.month.localeCompare(a.month));
+  const sorted = [...snapshots].sort((a, b) => a.month.localeCompare(b.month));
 
   if (sorted.length === 0) {
     return (

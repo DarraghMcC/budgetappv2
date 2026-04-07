@@ -174,7 +174,7 @@ export function App() {
           <MonthlySummary transactions={transactions} categories={categories} balances={balances} />
         )}
         {!loading && view === 'budget' && (
-          <BudgetProgress transactions={transactions} categories={categories} />
+          <BudgetProgress transactions={transactions} categories={categories} balances={balances} />
         )}
         {!loading && view === 'snapshot' && (
           <SnapshotTab snapshots={snapshots} balances={balances} />

@@ -77,6 +77,24 @@ export async function getExistingPendingRows(sheetId: string): Promise<PendingRo
     }));
 }
 
+// Exported for testing. Merges incoming pending rows with existing ones,
+// preserving user-set category/notes. Matches by ID first, then amount|account.
+export function mergePendingRows(
+  incoming: string[][],
+  existing: string[][],
+): string[][] {
+  const byId = new Map(
+    existing.map((r) => [r[0] as string, { category: (r[5] as string) ?? '', notes: (r[6] as string) ?? '' }]),
+  );
+  const byKey = new Map(
+    existing.map((r) => [`${r[3]}|${r[4]}`, { category: (r[5] as string) ?? '', notes: (r[6] as string) ?? '' }]),
+  );
+  return incoming.map((r) => {
+    const saved = byId.get(r[0]) ?? byKey.get(`${r[3]}|${r[4]}`);
+    return [r[0], r[1], r[2], r[3], r[4], saved?.category ?? r[5], saved?.notes ?? r[6]];
+  });
+}
+
 export async function replacePendingTransactions(
   sheetId: string,
   rows: string[][],
@@ -86,28 +104,27 @@ export async function replacePendingTransactions(
     range: 'transactions!A2:G',
   });
   const existing = res.data.values ?? [];
-
-  // Preserve category/notes the user set on pending rows
-  const existingPendingById = new Map(
-    existing
-      .filter((r) => String(r[0]).startsWith('pending_'))
-      .map((r) => [r[0] as string, { category: (r[5] as string) ?? '', notes: (r[6] as string) ?? '' }]),
-  );
-
-  const mergedPending = rows.map((r) => {
-    const saved = existingPendingById.get(r[0]);
-    return [r[0], r[1], r[2], r[3], r[4], saved?.category ?? r[5], saved?.notes ?? r[6]];
-  });
-
   const nonPending = existing.filter((r) => !String(r[0]).startsWith('pending_'));
-  const updated = [...mergedPending, ...nonPending];
+  const existingPending = existing.filter((r) => String(r[0]).startsWith('pending_'));
+  const mergedPending = mergePendingRows(rows, existingPending);
+  // Keep non-pending rows first so their rowIndex values stay stable for the PWA.
+  // Pending rows go at the bottom.
+  const updated = [...nonPending, ...mergedPending];
 
-  await sheets.spreadsheets.values.update({
+  // Clear the full old range first to avoid stale rows if the new content is shorter.
+  await sheets.spreadsheets.values.clear({
     spreadsheetId: sheetId,
-    range: 'transactions!A2',
-    valueInputOption: 'RAW',
-    requestBody: { values: updated.length > 0 ? updated : [[]] },
+    range: 'transactions!A2:G',
   });
+
+  if (updated.length > 0) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: sheetId,
+      range: 'transactions!A2',
+      valueInputOption: 'RAW',
+      requestBody: { values: updated },
+    });
+  }
 }
 
 export async function updateSnapshotActuals(

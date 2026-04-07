@@ -1,20 +1,17 @@
-import type { Category, Transaction } from '../types';
+import type { Balance, Category, Transaction } from '../types';
+import { filterBudgetTransactions } from '../lib/spending';
 
 interface Props {
   transactions: Transaction[];
   categories: Category[];
+  balances: Balance[];
 }
 
-export function BudgetProgress({ transactions, categories }: Props) {
+export function BudgetProgress({ transactions, categories, balances }: Props) {
   const now = new Date();
-  const monthTxs = transactions.filter((tx) => {
-    const [y, m] = tx.date.split('-').map(Number);
-    const d = new Date(y, m - 1, 1);
-    return (
-      d.getFullYear() === now.getFullYear() &&
-      d.getMonth() === now.getMonth() &&
-      tx.amount < 0
-    );
+  const monthTxs = filterBudgetTransactions(transactions, balances, {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
   });
 
   const budgeted = categories.filter((c) => c.budget != null);
