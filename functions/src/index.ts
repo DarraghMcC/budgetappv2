@@ -74,8 +74,8 @@ async function runSync() {
   await appendTransactions(sheetId, txRows);
 
   // Replace pending rows each sync, preserving any user-assigned categories/notes
-  const pendingRows = pending.map((t) => [
-    `pending_${t._id}`,
+  const pendingRows = pending.map((t, i) => [
+    `pending_${t._account}_${String(Math.abs(t.amount)).replace('.', '_')}_${i}`,
     new Date().toISOString().slice(0, 10),
     `[PENDING] ${t.description}`,
     String(t.amount),
