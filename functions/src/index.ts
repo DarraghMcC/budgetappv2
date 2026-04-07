@@ -11,6 +11,7 @@ import {
   appendTransactions,
   replacePendingTransactions,
   updateBalances,
+  updateSnapshotActuals,
 } from './sheets';
 import { applyRules } from './categorise';
 
@@ -92,6 +93,9 @@ async function runSync() {
   ]);
 
   await updateBalances(sheetId, balanceRows);
+
+  const totalBalance = accounts.reduce((sum, a) => sum + a.balance.current, 0);
+  await updateSnapshotActuals(sheetId, totalBalance);
 
   await setLastSync(sheetId, new Date().toISOString().slice(0, 10));
 

@@ -1,4 +1,4 @@
-import type { Balance, Category, Transaction } from '../types';
+import type { Balance, Category, Snapshot, Transaction } from '../types';
 
 const SHEET_ID = import.meta.env.VITE_SHEET_ID as string;
 const BASE = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`;
@@ -52,6 +52,18 @@ export async function getBalances(token: string): Promise<Balance[]> {
     description: r[1] ?? '',
     balance: parseFloat(r[2]) || 0,
     last_transaction: r[3] ?? '',
+  }));
+}
+
+export async function getSnapshots(token: string): Promise<Snapshot[]> {
+  const data = await request<{ values?: string[][] }>('/values/snapshots!A2:D', token);
+  const rows = data.values ?? [];
+  return rows.map((r, i) => ({
+    month: r[0] ?? '',
+    expected: parseFloat(r[1]) || 0,
+    actual: r[2] ? parseFloat(r[2]) : null,
+    diff: r[3] ? parseFloat(r[3]) : null,
+    rowIndex: i + 2,
   }));
 }
 

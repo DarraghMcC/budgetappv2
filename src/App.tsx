@@ -3,13 +3,15 @@ import { clearToken, initAuth, requestToken } from './lib/auth';
 import { useTransactions } from './hooks/useTransactions';
 import { useCategories } from './hooks/useCategories';
 import { useBalances } from './hooks/useBalances';
+import { useSnapshots } from './hooks/useSnapshots';
 import { TransactionList } from './components/TransactionList';
 import { CategoryPicker } from './components/CategoryPicker';
 import { MonthlySummary } from './components/MonthlySummary';
 import { BudgetProgress } from './components/BudgetProgress';
+import { SnapshotTab } from './components/SnapshotTab';
 import type { Transaction } from './types';
 
-type View = 'transactions' | 'summary' | 'budget';
+type View = 'transactions' | 'summary' | 'budget' | 'snapshot';
 
 export function App() {
   const [authed, setAuthed] = useState(false);
@@ -23,6 +25,7 @@ export function App() {
   const { transactions, loading, error, load, categorise } = useTransactions();
   const { categories, load: loadCategories } = useCategories();
   const { balances, load: loadBalances } = useBalances();
+  const { snapshots, load: loadSnapshots } = useSnapshots();
 
   // Initialise GIS once the script has loaded — poll until available
   useEffect(() => {
@@ -44,7 +47,7 @@ export function App() {
     try {
       await requestToken();
       setAuthed(true);
-      await Promise.all([load(), loadCategories(), loadBalances()]);
+      await Promise.all([load(), loadCategories(), loadBalances(), loadSnapshots()]);
     } finally {
       setSigning(false);
     }
@@ -128,6 +131,7 @@ export function App() {
               { id: 'transactions', label: 'Transactions' },
               { id: 'summary', label: 'Summary' },
               { id: 'budget', label: 'Budget' },
+              { id: 'snapshot', label: 'Snapshot' },
             ] as const
           ).map((tab) => (
             <button
@@ -171,6 +175,9 @@ export function App() {
         )}
         {!loading && view === 'budget' && (
           <BudgetProgress transactions={transactions} categories={categories} />
+        )}
+        {!loading && view === 'snapshot' && (
+          <SnapshotTab snapshots={snapshots} balances={balances} />
         )}
       </main>
 

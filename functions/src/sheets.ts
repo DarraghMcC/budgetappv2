@@ -110,6 +110,33 @@ export async function replacePendingTransactions(
   });
 }
 
+export async function updateSnapshotActuals(
+  sheetId: string,
+  totalBalance: number,
+): Promise<void> {
+  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: 'snapshots!A2:D',
+  });
+  const rows = res.data.values ?? [];
+
+  const rowIndex = rows.findIndex((r) => (r[0] as string) === currentMonth);
+  if (rowIndex === -1) return; // no row for this month — nothing to write
+
+  const expected = parseFloat(rows[rowIndex][1] as string) || 0;
+  const diff = totalBalance - expected;
+  const sheetRow = rowIndex + 2; // 1-based + header
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: sheetId,
+    range: `snapshots!C${sheetRow}:D${sheetRow}`,
+    valueInputOption: 'RAW',
+    requestBody: { values: [[String(totalBalance), String(diff)]] },
+  });
+}
+
 export async function updateBalances(sheetId: string, rows: string[][]): Promise<void> {
   await sheets.spreadsheets.values.clear({
     spreadsheetId: sheetId,
