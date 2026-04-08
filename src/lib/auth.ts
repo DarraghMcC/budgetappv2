@@ -27,8 +27,14 @@ export function requestToken(): Promise<string> {
       reject(new Error('Google sign-in not ready yet — please try again'));
       return;
     }
+
+    const timeout = setTimeout(() => {
+      reject(new Error('Sign-in timed out — check that this origin is authorised in your Google OAuth client'));
+    }, 30_000);
+
     _tokenClient.callback = (resp: { error?: string; access_token: string }) => {
-      if (resp.error) return reject(new Error(resp.error));
+      clearTimeout(timeout);
+      if (resp.error) return reject(new Error(`OAuth error: ${resp.error}`));
       _token = resp.access_token;
       resolve(_token);
     };
