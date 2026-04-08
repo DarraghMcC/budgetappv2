@@ -21,6 +21,7 @@ export function App() {
 
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const { transactions, loading, error, load, categorise } = useTransactions();
   const { categories, load: loadCategories } = useCategories();
@@ -44,10 +45,13 @@ export function App() {
 
   async function signIn() {
     setSigning(true);
+    setAuthError(null);
     try {
       await requestToken();
       setAuthed(true);
       await Promise.all([load(), loadCategories(), loadBalances(), loadSnapshots()]);
+    } catch (e) {
+      setAuthError(e instanceof Error ? e.message : 'Sign-in failed');
     } finally {
       setSigning(false);
     }
@@ -100,6 +104,9 @@ export function App() {
         >
           {signing ? 'Signing in…' : 'Sign in with Google'}
         </button>
+        {authError && (
+          <p className="text-center text-xs text-red-400 max-w-xs">{authError}</p>
+        )}
       </div>
     );
   }
