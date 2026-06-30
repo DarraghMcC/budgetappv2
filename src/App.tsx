@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { clearToken, initAuth, requestToken } from './lib/auth';
+import { clearToken, handleOAuthCallback, redirectToSignIn } from './lib/auth';
 import { useTransactions } from './hooks/useTransactions';
 import { useCategories } from './hooks/useCategories';
 import { useBalances } from './hooks/useBalances';
@@ -15,7 +15,7 @@ type View = 'transactions' | 'summary' | 'budget' | 'snapshot';
 
 export function App() {
   const [authed, setAuthed] = useState(false);
-  const [signing, setSigning] = useState(false);
+  const [signing, setSigning] = useState(true);
   const [view, setView] = useState<View>('transactions');
   const [picking, setPicking] = useState<Transaction | null>(null);
 
@@ -28,33 +28,29 @@ export function App() {
   const { balances, load: loadBalances } = useBalances();
   const { snapshots, load: loadSnapshots } = useSnapshots();
 
-  // Initialise GIS once the script has loaded — poll until available
+  // Handle OAuth redirect callback on mount
   useEffect(() => {
-    let cancelled = false;
-    function tryInit() {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if ((window as any).google?.accounts?.oauth2) {
-        initAuth();
-      } else if (!cancelled) {
-        setTimeout(tryInit, 100);
+    async function init() {
+      try {
+        const token = await handleOAuthCallback();
+        if (token) {
+          setAuthed(true);
+          await Promise.all([load(), loadCategories(), loadBalances(), loadSnapshots()]);
+        }
+      } catch (e) {
+        setAuthError(e instanceof Error ? e.message : 'Sign-in failed');
+      } finally {
+        setSigning(false);
       }
     }
-    tryInit();
-    return () => { cancelled = true; };
+    init();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function signIn() {
-    setSigning(true);
     setAuthError(null);
-    try {
-      await requestToken();
-      setAuthed(true);
-      await Promise.all([load(), loadCategories(), loadBalances(), loadSnapshots()]);
-    } catch (e) {
-      setAuthError(e instanceof Error ? e.message : 'Sign-in failed');
-    } finally {
-      setSigning(false);
-    }
+    setSigning(true);
+    await redirectToSignIn(); // navigates away — setSigning(false) never runs
   }
 
   function signOut() {
