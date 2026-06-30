@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { clearToken, handleOAuthCallback, redirectToSignIn } from './lib/auth';
+import { clearToken, handleOAuthCallback, redirectToSignIn, restoreSession } from './lib/auth';
 import { useTransactions } from './hooks/useTransactions';
 import { useCategories } from './hooks/useCategories';
 import { useBalances } from './hooks/useBalances';
@@ -32,7 +32,7 @@ export function App() {
   useEffect(() => {
     async function init() {
       try {
-        const token = await handleOAuthCallback();
+        const token = await restoreSession() ?? await handleOAuthCallback();
         if (token) {
           setAuthed(true);
           await Promise.all([load(), loadCategories(), loadBalances(), loadSnapshots()]);
