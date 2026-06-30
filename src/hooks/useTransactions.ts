@@ -36,7 +36,7 @@ export function useTransactions() {
       }
       setTransactions((prev) =>
         prev.map((t) =>
-          t.id === tx.id ? { ...t, category, notes: notes ?? t.notes } : t,
+          t.rowIndex === tx.rowIndex ? { ...t, category, notes: notes ?? t.notes } : t,
         ),
       );
     },

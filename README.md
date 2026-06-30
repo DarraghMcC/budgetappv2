@@ -11,7 +11,7 @@ flowchart TD
     Sheet["📊 Google Sheet\n(source of truth)"]
     PWA["📱 PWA\n(React + Vite)"]
     User["👤 You"]
-    GIS["🔑 Google OAuth\n(GIS)"]
+    OAuth["🔑 Google OAuth\n(PKCE redirect)"]
 
     Akahu -->|transactions + pending + balances| Fn
     Fn -->|append rows / update balances / update snapshots| Sheet
@@ -20,8 +20,8 @@ flowchart TD
     PWA -->|write category + notes| Sheet
     User -->|tap Sync| PWA
     PWA -->|POST /syncAkahuHttp| Fn
-    User -->|sign in| GIS
-    GIS -->|access token| PWA
+    User -->|sign in| OAuth
+    OAuth -->|access token| PWA
 
     subgraph Firebase
         Fn
@@ -90,7 +90,7 @@ BudgetAppV2/
 │   ├── App.tsx                 # Root — auth, tabs, sync trigger
 │   ├── types.ts                # Shared TypeScript types
 │   ├── lib/
-│   │   ├── auth.ts             # Google Identity Services (GIS) wrapper
+│   │   ├── auth.ts             # OAuth 2.0 PKCE redirect flow
 │   │   └── sheets.ts           # Sheets API client
 │   ├── hooks/
 │   │   ├── useTransactions.ts
@@ -134,6 +134,7 @@ In [Google Cloud Console](https://console.cloud.google.com):
 - Enable the **Google Sheets API**
 - APIs & Services → Credentials → **+ Create Credentials → OAuth client ID** (Web application)
 - Authorised JavaScript origins: `http://localhost:5174` and `https://your-project.web.app`
+- Authorised redirect URIs: `http://localhost:5174` and `https://your-project.web.app`
 
 ### 5. Secrets (Functions)
 
@@ -150,6 +151,7 @@ Create `.env.local` in the repo root:
 
 ```
 VITE_GOOGLE_CLIENT_ID=<your OAuth client ID>
+VITE_GOOGLE_CLIENT_SECRET=<your OAuth client secret>
 VITE_SHEET_ID=<your spreadsheet ID>
 VITE_SYNC_URL=<deployed syncAkahuHttp URL>
 VITE_SYNC_SECRET=<same value as SYNC_SECRET above>
@@ -157,7 +159,7 @@ VITE_SYNC_SECRET=<same value as SYNC_SECRET above>
 
 ### 7. CI/CD
 
-Run `firebase init hosting:github --project <your-project-id>` to create a service account and add it as a GitHub secret. Then add the four `VITE_*` secrets in GitHub → Settings → Secrets → Actions.
+Run `firebase init hosting:github --project <your-project-id>` to create a service account and add it as a GitHub secret. Then add the five `VITE_*` secrets in GitHub → Settings → Secrets → Actions.
 
 Push to `main` — GitHub Actions deploys everything.
 

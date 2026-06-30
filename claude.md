@@ -38,7 +38,7 @@ Akahu API → Firebase Function (scheduled + HTTP) → Google Sheets ← → PWA
 | Hosting          | Firebase Hosting                                                  |
 | Service worker   | Workbox (via vite-plugin-pwa)                                     |
 | Auth (Functions) | Compute Engine default service account                            |
-| Auth (PWA)       | Google Identity Services (GIS) — OAuth2 implicit flow            |
+| Auth (PWA)       | OAuth 2.0 PKCE redirect flow (authorization code + client secret) |
 | Secrets          | Google Cloud Secret Manager (`firebase functions:secrets:set`)    |
 | CI/CD            | GitHub Actions → deploy on push to `main`                        |
 
@@ -147,7 +147,7 @@ firebase functions:secrets:set SYNC_SECRET        # shared secret for HTTP endpo
 
 - React + Vite, TypeScript strict mode.
 - Tailwind CSS for styling — dark theme (`bg-slate-900`).
-- Google Identity Services (GIS) for OAuth. Polls until `window.google.accounts.oauth2` is available (avoids race condition with async GIS script load).
+- OAuth 2.0 PKCE redirect flow. Sign-in redirects the page to Google's consent screen; Google redirects back with an authorization code; the app exchanges the code for an access token via `https://oauth2.googleapis.com/token`.
 - Sheets API called directly from the PWA using the user's OAuth token — no Firebase Function in the read/write path.
 - Workbox service worker for offline app shell caching.
 - Safe-area insets handled for notched phones.
@@ -178,7 +178,7 @@ BudgetAppV2/
 │   ├── index.css                      # Tailwind + safe-area utilities
 │   ├── sw.ts                          # Workbox service worker
 │   ├── lib/
-│   │   ├── auth.ts                    # GIS OAuth wrapper
+│   │   ├── auth.ts                    # OAuth 2.0 PKCE redirect flow
 │   │   └── sheets.ts                  # Sheets API client
 │   ├── hooks/
 │   │   ├── useTransactions.ts
@@ -206,6 +206,7 @@ BudgetAppV2/
 
 ```
 VITE_GOOGLE_CLIENT_ID=<OAuth client ID>
+VITE_GOOGLE_CLIENT_SECRET=<OAuth client secret>
 VITE_SHEET_ID=<spreadsheet ID>
 VITE_SYNC_URL=<deployed syncAkahuHttp URL>
 VITE_SYNC_SECRET=<same value as SYNC_SECRET secret>
@@ -217,6 +218,7 @@ VITE_SYNC_SECRET=<same value as SYNC_SECRET secret>
 |---|---|
 | `FIREBASE_SERVICE_ACCOUNT_BUDGETAPPV2_B7275` | Service account JSON (created by `firebase init hosting:github`) |
 | `VITE_GOOGLE_CLIENT_ID` | OAuth client ID |
+| `VITE_GOOGLE_CLIENT_SECRET` | OAuth client secret |
 | `VITE_SHEET_ID` | Spreadsheet ID |
 | `VITE_SYNC_URL` | Deployed HTTP function URL |
 | `VITE_SYNC_SECRET` | Sync shared secret |
@@ -226,9 +228,9 @@ VITE_SYNC_SECRET=<same value as SYNC_SECRET secret>
 1. **Akahu** — Register a personal app at [my.akahu.nz](https://my.akahu.nz). Connect bank accounts. Note app token and user token.
 2. **Google Sheet** — Create a spreadsheet with sheets: `transactions`, `balances`, `categories`, `rules`, `meta`, `snapshots`. Add headers as above. Put an initial date in `meta!B1`.
 3. **Firebase** — Create project (Blaze plan). Enable Functions + Hosting. Share the sheet with the Compute Engine default service account as Editor.
-4. **Google OAuth** — Enable Sheets API. Create OAuth client ID (Web). Add authorised origins: `http://localhost:5174` and `https://budgetappv2-b7275.web.app`.
+4. **Google OAuth** — Enable Sheets API. Create OAuth client ID (Web). Add authorised JavaScript origins and redirect URIs: `http://localhost:5174` and `https://budgetappv2-b7275.web.app`.
 5. **Secrets** — Set all four Firebase secrets (see above).
-6. **GitHub Actions** — Run `firebase init hosting:github --project budgetappv2-b7275` to create the service account and add it as a GitHub secret. Add the four VITE secrets manually.
+6. **GitHub Actions** — Run `firebase init hosting:github --project budgetappv2-b7275` to create the service account and add it as a GitHub secret. Add the five VITE secrets manually.
 7. **Deploy** — Push to `main` — GitHub Actions handles the rest.
 
 ## Design Principles
