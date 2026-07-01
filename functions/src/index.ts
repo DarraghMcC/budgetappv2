@@ -12,6 +12,8 @@ import {
   replacePendingTransactions,
   updateBalances,
   updateSnapshotActuals,
+  getAllSettledTransactions,
+  updateHistory,
 } from './sheets';
 import { applyRules } from './categorise';
 
@@ -96,6 +98,14 @@ async function runSync() {
 
   const totalBalance = accounts.reduce((sum, a) => sum + a.balance.current, 0);
   await updateSnapshotActuals(sheetId, totalBalance);
+
+  const personalAccountId = accounts.find((a) => a.name === 'Darragh Personal')?._id;
+  try {
+    const allTx = await getAllSettledTransactions(sheetId);
+    await updateHistory(sheetId, allTx, personalAccountId);
+  } catch (e) {
+    console.warn('History update skipped (does the history sheet exist?):', e);
+  }
 
   await setLastSync(sheetId, new Date().toISOString().slice(0, 10));
 
