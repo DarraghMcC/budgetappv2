@@ -19,6 +19,26 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Verify required secrets
+        run: |
+          missing=""
+          [ -z "$VITE_GOOGLE_CLIENT_ID" ]     && missing="$missing VITE_GOOGLE_CLIENT_ID"
+          [ -z "$VITE_GOOGLE_CLIENT_SECRET" ] && missing="$missing VITE_GOOGLE_CLIENT_SECRET"
+          [ -z "$VITE_SHEET_ID" ]             && missing="$missing VITE_SHEET_ID"
+          [ -z "$VITE_SYNC_URL" ]             && missing="$missing VITE_SYNC_URL"
+          [ -z "$VITE_SYNC_SECRET" ]          && missing="$missing VITE_SYNC_SECRET"
+          if [ -n "$missing" ]; then
+            echo "ERROR: missing required secrets:$missing"
+            exit 1
+          fi
+          echo "All secrets present."
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          VITE_GOOGLE_CLIENT_SECRET: ${{ secrets.VITE_GOOGLE_CLIENT_SECRET }}
+          VITE_SHEET_ID: ${{ secrets.VITE_SHEET_ID }}
+          VITE_SYNC_URL: ${{ secrets.VITE_SYNC_URL }}
+          VITE_SYNC_SECRET: ${{ secrets.VITE_SYNC_SECRET }}
+
       - name: Build PWA
         run: npm run build
         env:
