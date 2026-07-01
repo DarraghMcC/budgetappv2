@@ -97,6 +97,16 @@ Applied when new transactions are appended. User can override in the PWA.
 
 One row per month. `expected` is filled in manually. Each sync updates `actual` and `diff` for the current month's row using the live sum of all account balances. Past months are frozen once the month rolls over.
 
+### Sheet: `history`
+
+| Column | Description | Example |
+|---|---|---|
+| `month` | Month in `YYYY-MM` format | `2026-04` |
+| `category` | Category name | `Groceries` |
+| `amount` | Total spend for that category that month (positive) | `450.00` |
+
+Written by the sync function from all settled transactions. Excludes Darragh Personal account. Header row written by the function. **Must create the sheet manually before the first sync.**
+
 ### Sheet: `meta`
 
 | Cell | Description | Example |
@@ -137,6 +147,7 @@ firebase functions:secrets:set SYNC_SECRET        # shared secret for HTTP endpo
 2. **Summary** — Current month's total spend + total live balance across all accounts. Per-account balance list with this-month spend. Spend breakdown by category with bar chart.
 3. **Budget** — Progress bars for each category that has a budget set in the `categories` sheet.
 4. **Snapshot** — Monthly cash-on-hand targets vs actuals. Current month uses live balance total; past months show stored actuals. Diff shown per month.
+5. **History** — Per-month spend breakdown by category across all time. Excludes Darragh Personal account. Computed from the full transactions list (no separate API call).
 
 ### Header
 

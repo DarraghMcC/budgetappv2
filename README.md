@@ -58,6 +58,11 @@ Cleared and rewritten each sync.
 
 Case-insensitive substring match on description. Applied to new transactions at sync time.
 
+### `history`
+| `month` | `category` | `amount` |
+
+Written by the sync function. One row per month/category combination. Excludes the Darragh Personal account. Create this sheet manually before the first sync.
+
 ### `meta`
 Cell `B1` — last sync date (`YYYY-MM-DD`). Sync looks back 3 days from this date to catch late-arriving transactions.
 
@@ -74,6 +79,7 @@ One row per month. `expected` is set manually. `actual` and `diff` are written b
 | **Summary** | Month's total spend + live total balance. Per-account balances with this-month spend. Category breakdown. |
 | **Budget** | Progress bars for categories with a budget set. |
 | **Snapshot** | Monthly cash-on-hand targets vs actuals. Current month is live; past months show stored values. |
+| **History** | Per-month spend breakdown by category across all time. |
 
 ## Project structure
 

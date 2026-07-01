@@ -154,6 +154,63 @@ export async function updateSnapshotActuals(
   });
 }
 
+interface TxSummaryRow {
+  date: string;
+  amount: number;
+  account: string;
+  category: string;
+}
+
+export async function getAllSettledTransactions(sheetId: string): Promise<TxSummaryRow[]> {
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: 'transactions!A2:G',
+  });
+  const rows = res.data.values ?? [];
+  return rows
+    .filter((r) => !String(r[0]).startsWith('pending_'))
+    .map((r) => ({
+      date: String(r[1] ?? ''),
+      amount: parseFloat(String(r[3])) || 0,
+      account: String(r[4] ?? ''),
+      category: String(r[5] ?? '') || 'Uncategorised',
+    }));
+}
+
+export async function updateHistory(
+  sheetId: string,
+  transactions: TxSummaryRow[],
+  personalAccountId: string | undefined,
+): Promise<void> {
+  const filtered = transactions.filter(
+    (t) => t.amount < 0 && t.date.length >= 7 && t.account !== personalAccountId,
+  );
+
+  const map = new Map<string, Map<string, number>>();
+  for (const t of filtered) {
+    const month = t.date.slice(0, 7);
+    if (!map.has(month)) map.set(month, new Map());
+    const cats = map.get(month)!;
+    const key = t.category || 'Uncategorised';
+    cats.set(key, (cats.get(key) ?? 0) + Math.abs(t.amount));
+  }
+
+  const rows: string[][] = [['month', 'category', 'amount']];
+  for (const month of [...map.keys()].sort()) {
+    for (const [cat, amount] of [...map.get(month)!.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+      rows.push([month, cat, amount.toFixed(2)]);
+    }
+  }
+
+  await sheets.spreadsheets.values.clear({ spreadsheetId: sheetId, range: 'history!A:C' });
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: sheetId,
+    range: 'history!A1',
+    valueInputOption: 'RAW',
+    requestBody: { values: rows },
+  });
+}
+
 export async function updateBalances(sheetId: string, rows: string[][]): Promise<void> {
   await sheets.spreadsheets.values.clear({
     spreadsheetId: sheetId,

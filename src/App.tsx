@@ -9,9 +9,10 @@ import { CategoryPicker } from './components/CategoryPicker';
 import { MonthlySummary } from './components/MonthlySummary';
 import { BudgetProgress } from './components/BudgetProgress';
 import { SnapshotTab } from './components/SnapshotTab';
+import { HistoryTab } from './components/HistoryTab';
 import type { Transaction } from './types';
 
-type View = 'transactions' | 'summary' | 'budget' | 'snapshot';
+type View = 'transactions' | 'summary' | 'budget' | 'snapshot' | 'history';
 
 export function App() {
   const [authed, setAuthed] = useState(false);
@@ -135,6 +136,7 @@ export function App() {
               { id: 'summary', label: 'Summary' },
               { id: 'budget', label: 'Budget' },
               { id: 'snapshot', label: 'Snapshot' },
+              { id: 'history', label: 'History' },
             ] as const
           ).map((tab) => (
             <button
@@ -181,6 +183,9 @@ export function App() {
         )}
         {!loading && view === 'snapshot' && (
           <SnapshotTab snapshots={snapshots} balances={balances} />
+        )}
+        {!loading && view === 'history' && (
+          <HistoryTab transactions={transactions} categories={categories} balances={balances} />
         )}
       </main>
 
