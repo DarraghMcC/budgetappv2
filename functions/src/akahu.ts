@@ -15,7 +15,8 @@ export interface AkahuAccount {
   name: string;
   type?: string;
   balance: { current: number; available?: number; limit?: number; overdrawn?: boolean };
-  meta?: { last_transaction?: string };
+  meta?: { last_transaction?: string; [key: string]: unknown };
+  [key: string]: unknown;
 }
 
 async function akahuFetch(path: string, appToken: string, userToken: string) {
