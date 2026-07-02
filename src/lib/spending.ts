@@ -7,7 +7,7 @@ export function filterBudgetTransactions(
   balances: Balance[],
   month: { year: number; month: number }, // month is 1-based
 ): Transaction[] {
-  const personalId = balances.find((b) => b.account === PERSONAL_ACCOUNT)?.description;
+  const personalId = balances.find((b) => b.account.toLowerCase() === PERSONAL_ACCOUNT.toLowerCase())?.description;
   return transactions.filter((tx) => {
     const [y, m] = tx.date.split('-').map(Number);
     return (
