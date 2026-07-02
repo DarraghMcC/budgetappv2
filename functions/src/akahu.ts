@@ -13,7 +13,8 @@ export interface AkahuTransaction {
 export interface AkahuAccount {
   _id: string;
   name: string;
-  balance: { current: number };
+  type?: string;
+  balance: { current: number; available?: number; limit?: number; overdrawn?: boolean };
   meta?: { last_transaction?: string };
 }
 
