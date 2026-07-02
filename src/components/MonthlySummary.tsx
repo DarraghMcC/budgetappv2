@@ -1,5 +1,5 @@
 import type { Balance, Category, Transaction } from '../types';
-import { filterBudgetTransactions } from '../lib/spending';
+import { filterBudgetTransactions, PERSONAL_ACCOUNT } from '../lib/spending';
 
 interface Props {
   transactions: Transaction[];
@@ -14,9 +14,13 @@ export function MonthlySummary({ transactions, categories, balances }: Props) {
     month: now.getMonth() + 1,
   });
 
+  const budgetBalances = balances.filter(
+    (b) => b.account.toLowerCase() !== PERSONAL_ACCOUNT.toLowerCase(),
+  );
+
   const totalSpent = monthTxs.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
   const totalBudget = categories.reduce((sum, c) => sum + (c.budget ?? 0), 0);
-  const totalBalance = balances.reduce((sum, b) => sum + b.balance, 0);
+  const totalBalance = budgetBalances.reduce((sum, b) => sum + b.balance, 0);
 
   // Spend per account this month
   const spendByAccount = new Map<string, number>();
@@ -57,14 +61,14 @@ export function MonthlySummary({ transactions, categories, balances }: Props) {
       </div>
 
       {/* Per-account */}
-      {balances.length > 0 && (
+      {budgetBalances.length > 0 && (
         <div>
           <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
             Accounts
           </h2>
           <div className="divide-y divide-slate-700/50 rounded-2xl bg-slate-800 overflow-hidden">
-            {balances.map((b) => {
-              const spent = spendByAccount.get(b.account) ?? 0;
+            {budgetBalances.map((b) => {
+              const spent = spendByAccount.get(b.description) ?? 0;
               return (
                 <div key={b.account} className="flex items-center justify-between px-4 py-3">
                   <div className="min-w-0">
