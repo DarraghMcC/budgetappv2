@@ -4,6 +4,8 @@ import { useTransactions } from './hooks/useTransactions';
 import { useCategories } from './hooks/useCategories';
 import { useBalances } from './hooks/useBalances';
 import { useSnapshots } from './hooks/useSnapshots';
+import { useCheckpoints } from './hooks/useCheckpoints';
+import { applyCheckpoints } from './lib/checkpoints';
 import { TransactionList } from './components/TransactionList';
 import { CategoryPicker } from './components/CategoryPicker';
 import { MonthlySummary } from './components/MonthlySummary';
@@ -28,6 +30,7 @@ export function App() {
   const { categories, load: loadCategories } = useCategories();
   const { balances, load: loadBalances } = useBalances();
   const { snapshots, load: loadSnapshots } = useSnapshots();
+  const { checkpoints, load: loadCheckpoints } = useCheckpoints();
 
   // Handle OAuth redirect callback on mount
   useEffect(() => {
@@ -36,7 +39,7 @@ export function App() {
         const token = await restoreSession() ?? await handleOAuthCallback();
         if (token) {
           setAuthed(true);
-          await Promise.all([load(), loadCategories(), loadBalances(), loadSnapshots()]);
+          await Promise.all([load(), loadCategories(), loadBalances(), loadSnapshots(), loadCheckpoints()]);
         }
       } catch (e) {
         setAuthError(e instanceof Error ? e.message : 'Sign-in failed');
@@ -70,7 +73,7 @@ export function App() {
       const data = await res.json() as { ok?: boolean; synced?: number; error?: string };
       if (!res.ok) throw new Error(data.error ?? 'Sync failed');
       setSyncMsg(`Synced ${data.synced ?? 0} new transactions`);
-      await Promise.all([load(), loadBalances()]);
+      await Promise.all([load(), loadBalances(), loadCheckpoints()]);
     } catch (e) {
       console.error('[triggerSync] Sync failed:', e);
       setSyncMsg(e instanceof Error ? e.message : 'Sync failed');
@@ -78,6 +81,8 @@ export function App() {
       setSyncing(false);
     }
   }
+
+  const adjustedBalances = applyCheckpoints(balances, checkpoints, transactions);
 
   async function handleCategorySelect(category: string) {
     if (!picking) return;
@@ -171,21 +176,21 @@ export function App() {
           <TransactionList
             transactions={transactions}
             categories={categories}
-            balances={balances}
+            balances={adjustedBalances}
             onTap={setPicking}
           />
         )}
         {!loading && view === 'summary' && (
-          <MonthlySummary transactions={transactions} categories={categories} balances={balances} />
+          <MonthlySummary transactions={transactions} categories={categories} balances={adjustedBalances} />
         )}
         {!loading && view === 'budget' && (
-          <BudgetProgress transactions={transactions} categories={categories} balances={balances} />
+          <BudgetProgress transactions={transactions} categories={categories} balances={adjustedBalances} />
         )}
         {!loading && view === 'snapshot' && (
-          <SnapshotTab snapshots={snapshots} balances={balances} />
+          <SnapshotTab snapshots={snapshots} balances={adjustedBalances} />
         )}
         {!loading && view === 'history' && (
-          <HistoryTab transactions={transactions} categories={categories} balances={balances} />
+          <HistoryTab transactions={transactions} categories={categories} balances={adjustedBalances} />
         )}
       </main>
 
