@@ -87,10 +87,6 @@ async function runSync() {
   ]);
   await replacePendingTransactions(sheetId, pendingRows);
 
-  for (const a of accounts) {
-    console.log(`[account] ${JSON.stringify(a)}`);
-  }
-
   const balanceRows = accounts.map((a) => [
     a.name,
     a._id,
