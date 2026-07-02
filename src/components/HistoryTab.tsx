@@ -13,7 +13,7 @@ function monthLabel(ym: string): string {
 }
 
 export function HistoryTab({ transactions, categories, balances }: Props) {
-  const personalId = balances.find((b) => b.account === PERSONAL_ACCOUNT)?.description;
+  const personalId = balances.find((b) => b.account.toLowerCase() === PERSONAL_ACCOUNT.toLowerCase())?.description;
   const colourByName = new Map(categories.map((c) => [c.name, c.colour]));
 
   const filtered = transactions.filter(

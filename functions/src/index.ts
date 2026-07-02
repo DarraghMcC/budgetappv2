@@ -99,7 +99,7 @@ async function runSync() {
   const totalBalance = accounts.reduce((sum, a) => sum + a.balance.current, 0);
   await updateSnapshotActuals(sheetId, totalBalance);
 
-  const personalAccountId = accounts.find((a) => a.name === 'Darragh Personal')?._id;
+  const personalAccountId = accounts.find((a) => a.name.toLowerCase() === 'darragh personal')?._id;
   try {
     const allTx = await getAllSettledTransactions(sheetId);
     await updateHistory(sheetId, allTx, personalAccountId);
