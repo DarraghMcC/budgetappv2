@@ -22,6 +22,12 @@ export interface Balance {
   last_transaction: string;
 }
 
+export interface BalanceCheckpoint {
+  account: string; // matches balances.account (human-readable name)
+  date: string;    // YYYY-MM-DD — balance is as of end of this date
+  balance: number;
+}
+
 export interface Snapshot {
   month: string;    // YYYY-MM
   expected: number;

@@ -1,4 +1,4 @@
-import type { Balance, Category, Snapshot, Transaction } from '../types';
+import type { Balance, BalanceCheckpoint, Category, Snapshot, Transaction } from '../types';
 
 const SHEET_ID = import.meta.env.VITE_SHEET_ID as string;
 const BASE = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`;
@@ -65,6 +65,21 @@ export async function getSnapshots(token: string): Promise<Snapshot[]> {
     diff: r[3] ? parseFloat(r[3]) : null,
     rowIndex: i + 2,
   }));
+}
+
+export async function getCheckpoints(token: string): Promise<BalanceCheckpoint[]> {
+  try {
+    const data = await request<{ values?: string[][] }>('/values/checkpoints!A2:C', token);
+    return (data.values ?? [])
+      .filter((r) => r[0] && r[1] && r[2])
+      .map((r) => ({
+        account: r[0],
+        date: r[1],
+        balance: parseFloat(r[2]) || 0,
+      }));
+  } catch {
+    return []; // sheet may not exist yet
+  }
 }
 
 export async function getCategories(token: string): Promise<Category[]> {
