@@ -24,6 +24,10 @@ const SYNC_SECRET = defineSecret('SYNC_SECRET');
 
 const SECRETS = [AKAHU_APP_TOKEN, AKAHU_USER_TOKEN, GOOGLE_SHEET_ID, SYNC_SECRET];
 
+function nzDate(d = new Date()): string {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Pacific/Auckland' }).format(d);
+}
+
 async function runSync() {
   const sheetId = GOOGLE_SHEET_ID.value();
   const appToken = AKAHU_APP_TOKEN.value();
@@ -78,7 +82,7 @@ async function runSync() {
   // Replace pending rows each sync, preserving any user-assigned categories/notes
   const pendingRows = pending.map((t, i) => [
     `pending_${t._account}_${String(Math.abs(t.amount)).replace('.', '_')}_${i}`,
-    new Date().toISOString().slice(0, 10),
+    nzDate(),
     `[PENDING] ${t.description}`,
     String(t.amount),
     t._account,
@@ -107,7 +111,7 @@ async function runSync() {
     console.warn('History update skipped (does the history sheet exist?):', e);
   }
 
-  await setLastSync(sheetId, new Date().toISOString().slice(0, 10));
+  await setLastSync(sheetId, nzDate());
 
   console.log(`Synced ${newTransactions.length} new transactions from ${transactions.length} fetched.`);
   return { synced: newTransactions.length, fetched: transactions.length };
