@@ -131,7 +131,7 @@ export async function updateSnapshotActuals(
   sheetId: string,
   totalBalance: number,
 ): Promise<void> {
-  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const currentMonth = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Pacific/Auckland' }).format(new Date()).slice(0, 7);
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetId,
