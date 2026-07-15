@@ -33,10 +33,15 @@ export function SnapshotTab({ snapshots, balances }: Props) {
 
   return (
     <div className="space-y-3 px-4 py-4">
-      {sorted.map((s) => {
+      {sorted.map((s, i) => {
         const isCurrent = s.month === currentMonth;
         const actual = isCurrent ? liveTotal : s.actual;
         const diff = actual !== null ? actual - s.expected : s.diff;
+
+        const prevActual = i > 0
+          ? (sorted[i - 1].month === currentMonth ? liveTotal : sorted[i - 1].actual)
+          : null;
+        const saved = actual !== null && prevActual !== null ? actual - prevActual : null;
 
         return (
           <div key={s.month} className="rounded-2xl bg-slate-800 px-4 py-4">
@@ -63,6 +68,16 @@ export function SnapshotTab({ snapshots, balances }: Props) {
                 </span>
               </span>
             </div>
+
+            {saved !== null && (
+              <div className="mt-2 pt-2 border-t border-slate-700 text-xs text-slate-400 tabular-nums">
+                Saved{' '}
+                <span className={`font-medium ${saved >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {saved >= 0 ? '+' : ''}${fmt(saved)}
+                </span>
+                <span className="ml-1 text-slate-500">vs prev month</span>
+              </div>
+            )}
           </div>
         );
       })}
