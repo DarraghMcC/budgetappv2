@@ -14,7 +14,6 @@ export function PersonalDue({ transactions, clearedDates, onClear }: Props) {
       .filter(
         (tx) =>
           tx.amount < 0 &&
-          !tx.id.startsWith('pending_') &&
           tx.category.toLowerCase() === cat.toLowerCase() &&
           tx.date > clearedDate,
       )
