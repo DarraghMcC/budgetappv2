@@ -82,6 +82,37 @@ export async function getCheckpoints(token: string): Promise<BalanceCheckpoint[]
   }
 }
 
+export async function getPersonalClearedDates(token: string): Promise<Map<string, string>> {
+  try {
+    const data = await request<{ values?: string[][] }>('/values/meta!A2:B', token);
+    const rows = data.values ?? [];
+    return new Map(rows.filter((r) => r[0]).map((r) => [r[0], r[1] ?? '']));
+  } catch {
+    return new Map();
+  }
+}
+
+export async function setPersonalClearedDate(token: string, category: string, date: string): Promise<void> {
+  const data = await request<{ values?: string[][] }>('/values/meta!A2:B', token);
+  const rows = data.values ?? [];
+  const rowIndex = rows.findIndex((r) => r[0] === category);
+  if (rowIndex >= 0) {
+    const sheetRow = rowIndex + 2;
+    const range = encodeURIComponent(`meta!B${sheetRow}`);
+    await request(`/values/${range}?valueInputOption=RAW`, token, {
+      method: 'PUT',
+      body: JSON.stringify({ values: [[date]] }),
+    });
+  } else {
+    const nextRow = rows.length + 2;
+    const range = encodeURIComponent(`meta!A${nextRow}:B${nextRow}`);
+    await request(`/values/${range}?valueInputOption=RAW`, token, {
+      method: 'PUT',
+      body: JSON.stringify({ values: [[category, date]] }),
+    });
+  }
+}
+
 export async function getCategories(token: string): Promise<Category[]> {
   const data = await request<{ values?: string[][] }>('/values/categories!A2:C', token);
   const rows = data.values ?? [];

@@ -1,13 +1,16 @@
 import type { Balance, Category, Transaction } from '../types';
 import { filterBudgetTransactions } from '../lib/spending';
+import { PersonalDue } from './PersonalDue';
 
 interface Props {
   transactions: Transaction[];
   categories: Category[];
   balances: Balance[];
+  clearedDates: Map<string, string>;
+  onClear: (category: string) => void;
 }
 
-export function MonthlySummary({ transactions, categories, balances }: Props) {
+export function MonthlySummary({ transactions, categories, balances, clearedDates, onClear }: Props) {
   const now = new Date();
   const monthTxs = filterBudgetTransactions(transactions, balances, {
     year: now.getFullYear(),
@@ -117,6 +120,9 @@ export function MonthlySummary({ transactions, categories, balances }: Props) {
           </div>
         </div>
       )}
+
+      {/* Personal due */}
+      <PersonalDue transactions={transactions} clearedDates={clearedDates} onClear={onClear} />
 
     </div>
   );

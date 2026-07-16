@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filterBudgetTransactions } from './spending';
+import { filterBudgetTransactions, PERSONAL_CATEGORIES } from './spending';
 import type { Balance, Transaction } from '../types';
 
 function tx(overrides: Partial<Transaction> & { date: string; amount: number; account: string }): Transaction {
@@ -59,18 +59,18 @@ describe('filterBudgetTransactions', () => {
     expect(result).toHaveLength(0);
   });
 
-  it('excludes transactions categorised as Darragh Personal', () => {
+  it.each(PERSONAL_CATEGORIES)('excludes transactions categorised as %s', (category) => {
     const result = filterBudgetTransactions(
-      [tx({ date: '2026-04-05', amount: -50, account: 'acc_shared', category: 'Darragh Personal' })],
+      [tx({ date: '2026-04-05', amount: -50, account: 'acc_shared', category })],
       balances,
       month,
     );
     expect(result).toHaveLength(0);
   });
 
-  it('excludes Darragh Personal category case-insensitively', () => {
+  it.each(PERSONAL_CATEGORIES)('excludes %s category case-insensitively', (category) => {
     const result = filterBudgetTransactions(
-      [tx({ date: '2026-04-05', amount: -50, account: 'acc_shared', category: 'darragh personal' })],
+      [tx({ date: '2026-04-05', amount: -50, account: 'acc_shared', category: category.toLowerCase() })],
       balances,
       month,
     );
