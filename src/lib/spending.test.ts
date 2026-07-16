@@ -59,6 +59,24 @@ describe('filterBudgetTransactions', () => {
     expect(result).toHaveLength(0);
   });
 
+  it('excludes transactions categorised as Darragh Personal', () => {
+    const result = filterBudgetTransactions(
+      [tx({ date: '2026-04-05', amount: -50, account: 'acc_shared', category: 'Darragh Personal' })],
+      balances,
+      month,
+    );
+    expect(result).toHaveLength(0);
+  });
+
+  it('excludes Darragh Personal category case-insensitively', () => {
+    const result = filterBudgetTransactions(
+      [tx({ date: '2026-04-05', amount: -50, account: 'acc_shared', category: 'darragh personal' })],
+      balances,
+      month,
+    );
+    expect(result).toHaveLength(0);
+  });
+
   it('works when no balances are provided (no personal account to exclude)', () => {
     const result = filterBudgetTransactions(
       [tx({ date: '2026-04-05', amount: -50, account: 'acc_personal' })],
