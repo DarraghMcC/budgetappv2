@@ -1,6 +1,7 @@
 import type { Balance, Transaction } from '../types';
 
 export const PERSONAL_ACCOUNT = 'Darragh Personal';
+export const PERSONAL_CATEGORIES = ['Darragh Personal', 'Vicky Personal'];
 
 export function filterBudgetTransactions(
   transactions: Transaction[],
@@ -8,7 +9,7 @@ export function filterBudgetTransactions(
   month: { year: number; month: number }, // month is 1-based
 ): Transaction[] {
   const personalId = balances.find((b) => b.account.toLowerCase() === PERSONAL_ACCOUNT.toLowerCase())?.description;
-  const personalLower = PERSONAL_ACCOUNT.toLowerCase();
+  const personalCatsLower = PERSONAL_CATEGORIES.map((c) => c.toLowerCase());
   return transactions.filter((tx) => {
     const [y, m] = tx.date.split('-').map(Number);
     return (
@@ -16,7 +17,7 @@ export function filterBudgetTransactions(
       m === month.month &&
       tx.amount < 0 &&
       tx.account !== personalId &&
-      tx.category.toLowerCase() !== personalLower
+      !personalCatsLower.includes(tx.category.toLowerCase())
     );
   });
 }

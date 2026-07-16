@@ -1,5 +1,5 @@
 import type { Balance, Category, Transaction } from '../types';
-import { PERSONAL_ACCOUNT } from '../lib/spending';
+import { PERSONAL_ACCOUNT, PERSONAL_CATEGORIES } from '../lib/spending';
 
 interface Props {
   transactions: Transaction[];
@@ -14,10 +14,11 @@ function monthLabel(ym: string): string {
 
 export function HistoryTab({ transactions, categories, balances }: Props) {
   const personalId = balances.find((b) => b.account.toLowerCase() === PERSONAL_ACCOUNT.toLowerCase())?.description;
+  const personalCatsLower = PERSONAL_CATEGORIES.map((c) => c.toLowerCase());
   const colourByName = new Map(categories.map((c) => [c.name, c.colour]));
 
   const filtered = transactions.filter(
-    (tx) => tx.amount < 0 && !tx.id.startsWith('pending_') && tx.account !== personalId && tx.category.toLowerCase() !== PERSONAL_ACCOUNT.toLowerCase(),
+    (tx) => tx.amount < 0 && !tx.id.startsWith('pending_') && tx.account !== personalId && !personalCatsLower.includes(tx.category.toLowerCase()),
   );
 
   const byMonth = new Map<string, Transaction[]>();
