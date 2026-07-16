@@ -5,6 +5,7 @@ import { useCategories } from './hooks/useCategories';
 import { useBalances } from './hooks/useBalances';
 import { useSnapshots } from './hooks/useSnapshots';
 import { useCheckpoints } from './hooks/useCheckpoints';
+import { usePersonalCleared } from './hooks/usePersonalCleared';
 import { applyCheckpoints } from './lib/checkpoints';
 import { TransactionList } from './components/TransactionList';
 import { CategoryPicker } from './components/CategoryPicker';
@@ -31,6 +32,7 @@ export function App() {
   const { balances, load: loadBalances } = useBalances();
   const { snapshots, load: loadSnapshots } = useSnapshots();
   const { checkpoints, load: loadCheckpoints } = useCheckpoints();
+  const { clearedDates, load: loadCleared, clear: clearPersonal } = usePersonalCleared();
 
   // Handle OAuth redirect callback on mount
   useEffect(() => {
@@ -39,7 +41,7 @@ export function App() {
         const token = await restoreSession() ?? await handleOAuthCallback();
         if (token) {
           setAuthed(true);
-          await Promise.all([load(), loadCategories(), loadBalances(), loadSnapshots(), loadCheckpoints()]);
+          await Promise.all([load(), loadCategories(), loadBalances(), loadSnapshots(), loadCheckpoints(), loadCleared()]);
         }
       } catch (e) {
         setAuthError(e instanceof Error ? e.message : 'Sign-in failed');
@@ -181,7 +183,7 @@ export function App() {
           />
         )}
         {!loading && view === 'summary' && (
-          <MonthlySummary transactions={transactions} categories={categories} balances={adjustedBalances} />
+          <MonthlySummary transactions={transactions} categories={categories} balances={adjustedBalances} clearedDates={clearedDates} onClear={clearPersonal} />
         )}
         {!loading && view === 'budget' && (
           <BudgetProgress transactions={transactions} categories={categories} balances={adjustedBalances} />

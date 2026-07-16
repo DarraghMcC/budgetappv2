@@ -76,7 +76,7 @@ One row per month. `expected` is set manually. `actual` and `diff` are written b
 | Tab | Description |
 |---|---|
 | **Transactions** | Scrollable list grouped by date. Uncategorised debits highlighted red. Tap to categorise. |
-| **Summary** | Month's total spend + live total balance. Per-account balances with this-month spend. Category breakdown. |
+| **Summary** | Month's total spend + live total balance. Per-account balances with this-month spend. Category breakdown. Personal due tracker with per-person clear buttons. |
 | **Budget** | Progress bars for categories with a budget set. |
 | **Snapshot** | Monthly cash-on-hand targets vs actuals. Current month is live; past months show stored values. |
 | **History** | Per-month spend breakdown by category across all time. |
