@@ -17,7 +17,7 @@ export function HistoryTab({ transactions, categories, balances }: Props) {
   const colourByName = new Map(categories.map((c) => [c.name, c.colour]));
 
   const filtered = transactions.filter(
-    (tx) => tx.amount < 0 && !tx.id.startsWith('pending_') && tx.account !== personalId,
+    (tx) => tx.amount < 0 && !tx.id.startsWith('pending_') && tx.account !== personalId && tx.category.toLowerCase() !== PERSONAL_ACCOUNT.toLowerCase(),
   );
 
   const byMonth = new Map<string, Transaction[]>();
