@@ -16,6 +16,7 @@ export interface AkahuAccount {
   type?: string;
   balance: { current: number; available?: number; limit?: number; overdrawn?: boolean };
   meta?: { last_transaction?: string; [key: string]: unknown };
+  connection?: { name: string };
   [key: string]: unknown;
 }
 

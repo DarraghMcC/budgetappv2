@@ -91,16 +91,28 @@ async function runSync() {
   ]);
   await replacePendingTransactions(sheetId, pendingRows);
 
+  // ANZ's Akahu connection reports `balance.current` as the posted/ledger balance only —
+  // unlike other connections, it doesn't fold pending transactions in. Add each ANZ
+  // account's pending total back on so the synced balance reflects committed spending.
+  const pendingByAccount = new Map<string, number>();
+  for (const p of pending) {
+    pendingByAccount.set(p._account, (pendingByAccount.get(p._account) ?? 0) + p.amount);
+  }
+  const liveBalance = (a: (typeof accounts)[number]) =>
+    a.connection?.name === 'ANZ'
+      ? a.balance.current + (pendingByAccount.get(a._id) ?? 0)
+      : a.balance.current;
+
   const balanceRows = accounts.map((a) => [
     a.name,
     a._id,
-    String(a.balance.current),
+    String(liveBalance(a)),
     a.meta?.last_transaction?.slice(0, 10) ?? '',
   ]);
 
   await updateBalances(sheetId, balanceRows);
 
-  const totalBalance = accounts.reduce((sum, a) => sum + a.balance.current, 0);
+  const totalBalance = accounts.reduce((sum, a) => sum + liveBalance(a), 0);
   await updateSnapshotActuals(sheetId, totalBalance);
 
   const personalAccountId = accounts.find((a) => a.name.toLowerCase() === 'darragh personal')?._id;
