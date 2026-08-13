@@ -67,7 +67,7 @@ Akahu API → Firebase Function (scheduled + HTTP) → Google Sheets ← → PWA
 | `balance` | Current account balance | `4850.00` |
 | `last_transaction` | Date of last recorded transaction | `2026-04-05` |
 
-Cleared and rewritten on every sync.
+Cleared and rewritten on every sync. For accounts on the ANZ Akahu connection, `balance` is Akahu's `balance.current` plus that account's pending transaction total — ANZ's connection reports `current` as the posted/ledger balance only and does not fold in pending transactions the way other connections do, so the sync adds it back manually (see `runSync` in `functions/src/index.ts`).
 
 ### Sheet: `categories`
 
@@ -109,9 +109,10 @@ Written by the sync function from all settled transactions. Excludes Darragh Per
 
 ### Sheet: `meta`
 
-| Cell | Description | Example |
+| Cell / Range | Description | Example |
 |---|---|---|
 | `B1` | Date of last sync (YYYY-MM-DD) | `2026-04-07` |
+| `A2:B*` | Key-value rows — personal cleared dates (category name → YYYY-MM-DD) | `Darragh Personal \| 2026-07-16` |
 
 ## Firebase Function — Akahu Sync
 
@@ -126,7 +127,7 @@ Written by the sync function from all settled transactions. Excludes Darragh Per
 7. Applies auto-categorisation rules from the `rules` sheet to any unmatched transactions.
 8. Appends new settled transactions.
 9. Replaces all pending rows (preserving user-set category/notes by ID).
-10. Clears and rewrites the `balances` sheet.
+10. Clears and rewrites the `balances` sheet — for ANZ-connection accounts, adds that account's pending transaction total onto Akahu's reported balance first (see `balances` sheet notes above).
 11. Updates `actual` and `diff` in the current month's `snapshots` row.
 12. Updates `meta!B1` with today's date.
 
@@ -144,10 +145,10 @@ firebase functions:secrets:set SYNC_SECRET        # shared secret for HTTP endpo
 ### Tabs
 
 1. **Transactions** — Scrollable list grouped by date. Debits with no category highlighted red. Shows account name and category. Tap to open category picker.
-2. **Summary** — Current month's total spend + total live balance across all accounts. Per-account balance list with this-month spend. Spend breakdown by category with bar chart.
+2. **Summary** — Current month's total spend + total live balance across all accounts. Per-account balance list with this-month spend. Spend breakdown by category with bar chart. **Personal due** section: running total owed per personal category (defined in `PERSONAL_CATEGORIES` in `spending.ts`) since last cleared — cleared dates stored in `meta!A2:B*` (category name → date).
 3. **Budget** — Progress bars for each category that has a budget set in the `categories` sheet.
 4. **Snapshot** — Monthly cash-on-hand targets vs actuals. Current month uses live balance total; past months show stored actuals. Diff shown per month.
-5. **History** — Per-month spend breakdown by category across all time. Excludes Darragh Personal account. Computed from the full transactions list (no separate API call).
+5. **History** — Per-month spend breakdown by category across all time. Excludes transactions in any category listed in `PERSONAL_CATEGORIES` (`spending.ts`). Computed from the full transactions list (no separate API call).
 
 ### Header
 

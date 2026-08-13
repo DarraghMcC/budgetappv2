@@ -48,7 +48,7 @@ Pending (unprocessed) transactions are stored with a `pending_` ID prefix and `[
 ### `balances`
 | `account` | `description` | `balance` | `last_transaction` |
 
-Cleared and rewritten each sync.
+Cleared and rewritten each sync. For ANZ-connection accounts, `balance` includes that account's pending transaction total — ANZ reports its balance as posted-only, unlike other Akahu connections.
 
 ### `categories`
 | `name` | `colour` | `budget` |
